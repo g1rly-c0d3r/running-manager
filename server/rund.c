@@ -1,7 +1,11 @@
+#define _GNU_SOURCE
+
 #include <libgen.h>
+#include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,14 +13,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define NUM_COMMANDS 3
+static char pipe_name[] = "/tmp/rund";
+uint16_t thread_counter = 0;
+char **simulations;
 
-static char pipe_name[] = "/tmp/c_pipe";
-int thread_counter = 0;
+#include "run_sim.c"
+#include "watch.c"
 
 struct Args {
-  int log_level;
-  int num_threads;
+  int8_t log_level;
+  uint16_t num_threads;
 };
 
 void intHandler(int dummy) {
@@ -26,17 +32,20 @@ void intHandler(int dummy) {
   exit(dummy);
 }
 
-void *run_sim(void *script) {
-  char *base = malloc(strlen(script));
-  strcat(base, "./");
-  strcat(base, basename(script));
+bool canReadFromPipe(int32_t fd) {
+  // file descriptor struct to check if POLLIN bit will be set
+  // fd is the file descriptor of the pipe
+  struct pollfd fds = {.fd = fd, .events = POLLIN};
+  // poll with no wait time
+  int res = poll(&fds, 1, 0);
 
-  chdir(dirname(script));
-
-  system(base);
-
-  thread_counter--;
-  return (void *)"sucess";
+  // if res < 0 then an error occurred with poll
+  // POLLERR is set for some other errors
+  // POLLNVAL is set if the pipe is closed
+  if (res < 0 || fds.revents & (POLLERR | POLLNVAL)) {
+    // an error occurred, check errno
+  }
+  return fds.revents & POLLIN;
 }
 
 struct Args parse(int count, char **opts) {
@@ -45,13 +54,13 @@ struct Args parse(int count, char **opts) {
     if (opts[i][0] == '-') {
       switch (opts[i][1]) {
       case 'l':
-        args.log_level = (int)strtol(opts[i + 1], NULL, 10);
+        args.log_level = (int8_t)strtol(opts[i + 1], NULL, 10);
         break;
       case 't':
-        args.num_threads = (int)strtol(opts[i + 1], NULL, 10);
+        args.num_threads = (uint16_t)strtol(opts[i + 1], NULL, 10);
         break;
       default:
-        fprintf(stderr, "Usage: ./rund [-l <log_level>]\n");
+        fprintf(stderr, "Usage: ./rund [-l <log_level>] [-t <num_threads>]\n");
         exit(1);
       }
     }
@@ -72,55 +81,56 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Error! can not create pipe!\n");
     return err;
   }
+  //  FILE *pipe_header;
 
-  FILE *pipe_header;
-  const int buffsize = 255;
-  char buffer[buffsize];
+  int watchPipe[2];
+  pipe(watchPipe);
 
-  const char commands[NUM_COMMANDS][32] = {"exit\n", "status\n", "run\n"};
+  // Making sure that only one thread can read or write to
+  // thread_counter at a time
+  pthread_mutex_t threadCountLock;
+  pthread_mutex_init(&threadCountLock, NULL);
 
-  pthread_t *sim_threads =
-      malloc(sizeof(pthread_t) * (unsigned long)args.num_threads);
+  Watch_Args watchArgs = {.pipeToMain = watchPipe[1],
+                          .logLevel = args.log_level,
+                          .named_pipe = pipe_name};
+
+  // The watcher thread will open the named pipe and block for a command,
+  // and send a the command it recives to the main thread via an unamed pipe.
+  // This is so that the main thread does not have to block for a command
+  // (the main thread is a supervisor).
+  pthread_t watch_thread;
+  pthread_create(&watch_thread, NULL, watch, (void *)&watchArgs);
+  pthread_setname_np(watch_thread, "watcher");
 
   // main loop of the server
   // open the pipe, parse a command, execute it, and close the pipe.
+  const uint8_t buffsize = 255;
+  char command_buff[buffsize];
+  char sim_script[buffsize];
+
   while (1) {
-    if (args.log_level == 2)
-      printf("Opening pipe and waiting ...\n");
-    pipe_header = fopen(pipe_name, "r");
-    fgets(buffer, buffsize, pipe_header);
-    fclose(pipe_header);
-    if (args.log_level == 2)
-      printf("Command recived: %s", buffer);
+    command_buff[0] = 0;
+    if (canReadFromPipe(watchPipe[0])) {
+      read(watchPipe[0], command_buff, buffsize);
+    }
 
-    if (strcasecmp(buffer, commands[0]) == 0) {
+    switch (atoi(command_buff)) {
+    case EXIT:
+      printf("[Main] Goodbye!\n");
+      return 0;
       break;
-    } else if (strcasecmp(buffer, commands[1]) == 0) {
-      if (args.log_level == 2)
-        printf("Sending status.\n");
-      pipe_header = fopen(pipe_name, "w");
-      fprintf(pipe_header, "Status: Waiting for command\n");
-      fclose(pipe_header);
-    } else if (strcasecmp(buffer, commands[2]) == 0) {
-      if (args.log_level == 2)
-        printf("Getting simulation script...\n");
-      pipe_header = fopen(pipe_name, "r");
-      fgets(buffer, buffsize, pipe_header);
-      if (args.log_level == 2)
-        printf("Got script: %s\n", buffer);
-
-      if (thread_counter < args.num_threads) {
-        thread_counter++;
-        pthread_create(&sim_threads[thread_counter - 1], NULL, &run_sim,
-                       buffer);
-      }
-
-    } else {
-      pipe_header = fopen(pipe_name, "w");
-      fprintf(pipe_header, "Not a valid command!\n");
-      fclose(pipe_header);
+    case STATUS:
+      printf("[Main] Status command not implemented yet! Sorry!\n");
+      // TODO: implement status command.
+      break;
+    case RUN:
+      read(watchPipe[0], sim_script, buffsize);
+      queue_sim(sim_script);
     }
   }
+
+  pthread_join(watch_thread, NULL);
 
   printf("Exiting ... \n");
   remove(pipe_name);
