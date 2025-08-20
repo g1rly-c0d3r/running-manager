@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+fd='/tmp/rund'
+
+status() {
+  local status_line
+  echo 'status' >"$fd"
+  while read line; do
+    echo "$line"
+  done <"$fd"
+}
+
+run() {
+  echo $1
+  echo 'run' >"$fd"
+  sleep 0
+  echo "$1" >"$fd"
+  sleep 0
+}
+
+exit_fn() {
+  echo 'exit' >"$fd"
+}
+
+case "$1" in
+'')
+  echo 'Please specify a command'
+  exit 1
+  ;;
+'exit')
+  exit_fn
+  ;;
+'status')
+  status
+  ;;
+'run')
+  run "$2"
+  ;;
+*)
+  echo 'Invalid Command!'
+  exit 1
+  ;;
+esac
