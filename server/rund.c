@@ -17,10 +17,14 @@ static char pipe_name[] = "/tmp/rund";
 uint16_t thread_counter = 0;
 char **simulations;
 
+#include "queue.c"
 #include "run_sim.c"
 #include "watch.c"
 
 struct Args {
+  // number of simulations to allocate by default.
+  // if more simulations are queued, more memory will be realloc'd
+  uint8_t num_sims;
   int8_t log_level;
   uint16_t num_threads;
 };
@@ -49,10 +53,13 @@ bool canReadFromPipe(int32_t fd) {
 }
 
 struct Args parse(int count, char **opts) {
-  struct Args args = {0, 1};
+  struct Args args = {10, 0, 1};
   for (int i = 0; i < count; i++) {
     if (opts[i][0] == '-') {
       switch (opts[i][1]) {
+      case 'n':
+        args.num_sims = (uint8_t)strtol(opts[i + 1], NULL, 10);
+        break;
       case 'l':
         args.log_level = (int8_t)strtol(opts[i + 1], NULL, 10);
         break;
@@ -60,7 +67,8 @@ struct Args parse(int count, char **opts) {
         args.num_threads = (uint16_t)strtol(opts[i + 1], NULL, 10);
         break;
       default:
-        fprintf(stderr, "Usage: ./rund [-l <log_level>] [-t <num_threads>]\n");
+        fprintf(stderr, "Usage: ./rund [-n <num_sims> -l <log_level>] [-t "
+                        "<num_threads>]\n");
         exit(1);
       }
     }
@@ -72,6 +80,7 @@ int main(int argc, char **argv) {
   signal(SIGINT, intHandler);
 
   struct Args args = parse(argc, argv);
+  struct Queue *simQueue = create_queue();
 
   // remove any exisiting pipe that already exists
   remove(pipe_name);
@@ -126,7 +135,7 @@ int main(int argc, char **argv) {
       break;
     case RUN:
       read(watchPipe[0], sim_script, buffsize);
-      queue_sim(sim_script);
+      queue_sim(simQueue, sim_script);
     }
   }
 
