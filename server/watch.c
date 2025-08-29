@@ -71,7 +71,7 @@ void *watch(void *args) {
       pipe_header = fopen(named_pipe, "r");
       fgets(commandBuffer, buffsize, pipe_header);
       if (logLevel == 2)
-        printf("[Watcher] Got script: %s", commandBuffer);
+        printf("[Watcher] Got script: %s\n", commandBuffer);
       fclose(pipe_header);
 
       res = write(pipeToMain, commandBuffer, (size_t)buffsize);
