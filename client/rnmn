@@ -14,7 +14,7 @@ run() {
   echo $1
   echo 'run' >"$fd"
   sleep 0
-  echo "$1" >"$fd"
+  echo -n "$1" >"$fd"
   sleep 0
 }
 
