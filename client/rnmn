@@ -5,16 +5,17 @@ fd='/tmp/rund'
 status() {
   local status_line
   echo 'status' >"$fd"
-  while read line; do
+  while read -r line; do
+    echo "inside loop"
     echo "$line"
   done <"$fd"
 }
 
 run() {
-  echo $1
+  echo "$(pwd)/$1"
   echo 'run' >"$fd"
   sleep 0
-  echo -n "$1" >"$fd"
+  echo -n "$(pwd)/$1" >"$fd"
   sleep 0
 }
 

@@ -1,4 +1,5 @@
 #include <bits/pthreadtypes.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -17,24 +18,28 @@ struct Watch_Args {
   int pipeToMain;
   int logLevel;
   char *named_pipe;
+  pthread_mutex_t *pipe_lock;
 };
 
 void *watch(void *args) {
   int pipeToMain = (*(Watch_Args *)args).pipeToMain;
   int logLevel = (*(Watch_Args *)args).logLevel;
   char *named_pipe = (*(Watch_Args *)args).named_pipe;
+  pthread_mutex_t *pipeLock = ((Watch_Args *)args)->pipe_lock;
 
   FILE *pipe_header;
-  const int buffsize = 50;
+  const int buffsize = 512;
   char commandBuffer[buffsize];
   ssize_t res;
 
   while (true) {
     if (logLevel == 2)
       printf("[Watcher] Opening pipe and waiting ...\n");
+    pthread_mutex_lock(pipeLock);
     pipe_header = fopen(named_pipe, "r");
     fgets(commandBuffer, buffsize - 1, pipe_header);
     fclose(pipe_header);
+    pthread_mutex_unlock(pipeLock);
     if (logLevel == 2)
       printf("[Watcher] Command recived: %s", commandBuffer);
 
@@ -68,11 +73,13 @@ void *watch(void *args) {
 
       if (logLevel == 2)
         printf("[Watcher] Getting simulation script...\n");
+      pthread_mutex_lock(pipeLock);
       pipe_header = fopen(named_pipe, "r");
       fgets(commandBuffer, buffsize, pipe_header);
       if (logLevel == 2)
         printf("[Watcher] Got script: %s\n", commandBuffer);
       fclose(pipe_header);
+      pthread_mutex_unlock(pipeLock);
 
       res = write(pipeToMain, commandBuffer, (size_t)buffsize);
       if (res == -1) {
@@ -84,9 +91,6 @@ void *watch(void *args) {
     } else {
       if (logLevel == 2)
         printf("[Watcher] Invalid command recived!\n");
-      pipe_header = fopen(named_pipe, "w");
-      fprintf(pipe_header, "Not a valid command!\n");
-      fclose(pipe_header);
     }
   }
 

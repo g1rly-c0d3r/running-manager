@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#RNMN threads = 2
 
 echo -n 'doing something . . . '
 sleep 3

@@ -9,7 +9,7 @@ rund:  server/watch.c server/rund.c
 
 .PHONY: debug
 debug: server/rund.c 
-	${CC} -g  -o run-db $^ 
+	${CC} -g -fsanitize=address -o run-db $^ 
 	gdb run-db
 
 .PHONY:clean
