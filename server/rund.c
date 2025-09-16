@@ -188,7 +188,6 @@ int main(int argc, char **argv) {
     case EXIT:
       // TODO: kill running sims before exiting
       printf("[Main] Goodbye!\n");
-      return 0;
       break;
     case STATUS:
       // printf("[Main] Status command not implemented yet! Sorry!\n");

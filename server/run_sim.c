@@ -18,7 +18,7 @@ struct simArgs {
 
 static void *sim(void *args);
 
-pthread_t *run_sim(void *script, uint8_t threads, struct List *running,
+void run_sim(void *script, uint8_t threads, struct List *running,
              pthread_mutex_t *threadCounter) {
   pthread_t *sim_thread = malloc(sizeof(pthread_t));
   push(running, script, threads, sim_thread);
@@ -27,7 +27,6 @@ pthread_t *run_sim(void *script, uint8_t threads, struct List *running,
   *sim_args = (struct simArgs){.script = script, .threads = threads, .threadCounter = threadCounter};
   pthread_create(sim_thread, NULL, sim, (void *)sim_args);
   pthread_setname_np(*sim_thread, script);
-  return sim_thread;
 }
 
 static void *sim(void *args) {

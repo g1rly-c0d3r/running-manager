@@ -3,8 +3,10 @@
 fd='/tmp/rund'
 
 status() {
-  local status_line
+  local line 
+
   echo 'status' >"$fd"
+
   while read -r line; do
     echo "inside loop"
     echo "$line"
@@ -23,22 +25,26 @@ exit_fn() {
   echo 'exit' >"$fd"
 }
 
-case "$1" in
-'')
-  echo 'Please specify a command'
-  exit 1
-  ;;
-'exit')
-  exit_fn
-  ;;
-'status')
-  status
-  ;;
-'run')
-  run "$2"
-  ;;
-*)
-  echo 'Invalid Command!'
-  exit 1
-  ;;
-esac
+main(){
+	case "$1" in
+	'')
+	  echo 'Please specify a command'
+	  exit 1
+	  ;;
+	'exit')
+	  exit_fn
+	  ;;
+	'status')
+	  status
+	  ;;
+	'run')
+	  run "$2"
+	  ;;
+	*)
+	  echo 'Invalid Command!'
+	  exit 1
+	  ;;
+	esac
+}
+
+main "$@"
