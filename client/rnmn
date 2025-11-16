@@ -2,15 +2,17 @@
 
 fd='/tmp/rund'
 
+fatal(){
+    echo "ERROR: $1" >&2
+    exit 1
+}
+
 status() {
-  local line 
+  echo 'status' > "$fd"
 
-  echo 'status' >"$fd"
+  nop # if there is no gap between writing and reading, the server does not get the 
 
-  while read -r line; do
-    echo "inside loop"
-    echo "$line"
-  done <"$fd"
+  cat "$fd"
 }
 
 run() {

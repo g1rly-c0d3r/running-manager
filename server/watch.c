@@ -1,4 +1,3 @@
-#include <bits/pthreadtypes.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -6,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <arena.h>
 
 #define NUM_COMMANDS 3
 const char commands[NUM_COMMANDS][32] = {"exit\n", "status\n", "run\n"};
@@ -22,10 +22,11 @@ struct Watch_Args {
 };
 
 void *watch(void *args) {
-  int pipeToMain = (*(Watch_Args *)args).pipeToMain;
-  int logLevel = (*(Watch_Args *)args).logLevel;
-  char *named_pipe = (*(Watch_Args *)args).named_pipe;
-  pthread_mutex_t *pipeLock = ((Watch_Args *)args)->pipe_lock;
+    arena_t *scratch = (arena_t *)args;
+  int pipeToMain = ((Watch_Args *)scratch->elem)->pipeToMain;
+  int logLevel = ((Watch_Args *)scratch->elem)->logLevel;
+  char *named_pipe = ((Watch_Args *)scratch->elem)->named_pipe;
+  pthread_mutex_t *pipeLock = ((Watch_Args *)scratch->elem)->pipe_lock;
 
   FILE *pipe_header;
   const int buffsize = 512;
@@ -33,13 +34,14 @@ void *watch(void *args) {
   ssize_t res;
 
   while (true) {
+    pthread_mutex_lock(pipeLock);
     if (logLevel == 2)
       printf("[Watcher] Opening pipe and waiting ...\n");
-    pthread_mutex_lock(pipeLock);
     pipe_header = fopen(named_pipe, "r");
     fgets(commandBuffer, buffsize - 1, pipe_header);
     fclose(pipe_header);
     pthread_mutex_unlock(pipeLock);
+
     if (logLevel == 2)
       printf("[Watcher] Command recived: %s", commandBuffer);
 
@@ -60,6 +62,7 @@ void *watch(void *args) {
         exit(BROKEN_PIPE);
         break;
       }
+      sleep(5); // we sleep so that we do not open the pipe again untill after the status has been printed
     }
     // run
     else if (strcasecmp(commandBuffer, commands[2]) == 0) {

@@ -33,7 +33,7 @@ static void *sim(void *args) {
   char *script = ((struct simArgs *)args)->script;
   uint8_t threads_in_use = ((struct simArgs *)args)->threads;
   pthread_mutex_t *threadCounter = ((struct simArgs *)args)->threadCounter;
-  char *buffer = alloca(512 * sizeof(char));
+  char buffer[512]; 
 
   // we will be running this sim and saving the output
   char *redirect = " > run.out 2> err.out";
