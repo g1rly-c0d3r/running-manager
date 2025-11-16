@@ -3,7 +3,6 @@
 #include <libgen.h>
 #include <poll.h>
 #include <pthread.h>
-#include <signal.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,7 +14,6 @@
 
 char pipe_name[] = "/tmp/rund/command";
 uint16_t thread_counter = 0;
-int watchPipe[2];
 
 #include "queue.c"
 #include "run_sim.c"
@@ -57,10 +55,28 @@ int start_watcher(int *pipe, int8_t logLevel, pthread_mutex_t *lock);
 
 void create_tmp(int8_t log_level);
 
-void check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue simQueue);
+int check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue *simQueue, struct List *runningList);
 
+void run_next_sim(struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel);
 
-void check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue simQueue) { 
+void run_next_sim(struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel){
+    if (!is_empty(simQueue)) {
+        pthread_mutex_lock(threadlock);
+        if (numthreads - simQueue->front->threads_needed >= 0) {
+            thread_counter -= simQueue->front->threads_needed;
+            run_sim(simQueue->front->script, 
+                    simQueue->front->threads_needed,
+                    runninglist,
+                    threadlock);
+            dequeue(simQueue);
+        }
+        pthread_mutex_unlock(threadlock);
+    } else if (loglevel >= 3) {
+        printf("[Main] Simulation queue empty! Nothing to run.\n");
+    }
+} // run_next_sim
+
+int check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue *simQueue, struct List *runningList) { 
     // command_buff should be declared in check_watcher
     // buffer to recive commands from the watcher thread
     const uint8_t buffsize = 255;
@@ -68,30 +84,31 @@ void check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue simQueue
 
     // so that if the command from the prev iteration doesn't get ran.
     command_buff[0] = 0;
-    if (canReadFromPipe(watchPipe[0])) {
-    read(watchPipe[0], command_buff, buffsize);
+    if (canReadFromPipe(watch_pipe_reader)) {
+    read(watch_pipe_reader, command_buff, buffsize);
     }
 
     switch (strtoul(command_buff, NULL, 10)) {
     case EXIT:
     // TODO: kill running sims before exiting
-    if (args.log_level >= 1)
+    if (loglevel >= 1)
         printf("[Main] Exit command recived.\n");
-    goto dealloc;
+    return -1;
     case STATUS:
-    if (args.log_level >= 1)
+    if (loglevel >= 1)
         printf("[Main] Status command recived\n");
 
     print_status(runningList, simQueue);
     break;
     case RUN:
-    if (args.log_level >= 1)
+    if (loglevel >= 1)
         printf("[Main] Run command recived, name: %s", &command_buff[1]);
     // command_buff holds the command enum in the first element,
     // and the script name follows it.
     queue_sim(simQueue, &command_buff[1]); // this should probably be outside
     }
 
+    return 0;
 } // check_watcher
 
 void create_tmp(int8_t log_level){
