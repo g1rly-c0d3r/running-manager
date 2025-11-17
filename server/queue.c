@@ -1,7 +1,6 @@
 #ifndef QUEUE
 #define QUEUE
 
-#include <bits/pthreadtypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -8,7 +8,7 @@ rund: $(OBJS)
 	${CC} ${cc_warnings} ${cc_optimizations} -o $@ server/main.c -larena
 
 .PHONY: debug
-debug: server/rund.c 
+debug: server/main.c 
 	${CC} -g -fsanitize=address -o run-db $^ -larena
 	gdb run-db
 

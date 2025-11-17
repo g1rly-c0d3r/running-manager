@@ -118,27 +118,11 @@ void create_tmp(int8_t log_level){
     if (access(pipe_name, F_OK) == 0)
         remove(pipe_name);
 
-    if (access(dirname(pipe_name), F_OK) != 0)
+    if (access("/tmp/rund/", F_OK) != 0)
             pass();
 
-    mkdir(dirname(pipe_name), 0755);
-    if ( (errno & ( EACCES | 
-                EBADF | 
-                EDQUOT | 
-                EFAULT | 
-                ELOOP | 
-                EMLINK | 
-                ENAMETOOLONG |
-                ENOENT | 
-                ENOMEM | 
-                ENOSPC |
-                ENOTDIR | 
-                EPERM |
-                EROFS |
-                EOVERFLOW)) != 0) {
-        fprintf(stderr, "[Main] ERROR: can not create temporary directory.\n");
-        exit(1);
-    } else if (log_level > 1) {
+    mkdir("/tmp/rund", 0700);
+    if (log_level > 1) {
         printf("[Main] Temporary directory created.\n");
     }
     
