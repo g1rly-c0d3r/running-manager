@@ -4,7 +4,7 @@ cc_optimizations=-O3 -march=native
 
 OBJS := ./server/main.c ./server/rund.c ./server/queue.c ./server/watch.c ./server/run_sim.c
 
-rund: $(OBJS)
+rnmnd: $(OBJS)
 	${CC} ${cc_warnings} ${cc_optimizations} -o $@ server/main.c -larena
 
 .PHONY: debug
@@ -14,4 +14,4 @@ debug: server/main.c
 
 .PHONY:clean
 clean:
-	rm -f run-db rund
+	rm -f run-db rnmnd
