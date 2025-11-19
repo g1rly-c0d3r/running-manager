@@ -18,7 +18,6 @@ struct Watch_Args {
   int pipeToMain;
   int logLevel;
   char *named_pipe;
-  pthread_mutex_t *pipe_lock;
 };
 
 void *watch(void *args) {
@@ -26,7 +25,6 @@ void *watch(void *args) {
   int pipeToMain = ((Watch_Args *)scratch->elem)->pipeToMain;
   int logLevel = ((Watch_Args *)scratch->elem)->logLevel;
   char *named_pipe = ((Watch_Args *)scratch->elem)->named_pipe;
-  pthread_mutex_t *pipeLock = ((Watch_Args *)scratch->elem)->pipe_lock;
 
   FILE *pipe_header;
   const int buffsize = 512;
@@ -34,13 +32,11 @@ void *watch(void *args) {
   ssize_t res;
 
   while (true) {
-    pthread_mutex_lock(pipeLock);
     if (logLevel == 2)
       printf("[Watcher] Opening pipe and waiting ...\n");
     pipe_header = fopen(named_pipe, "r");
     fgets(commandBuffer, buffsize - 1, pipe_header);
     fclose(pipe_header);
-    pthread_mutex_unlock(pipeLock);
 
     if (logLevel == 2)
       printf("[Watcher] Command recived: %s", commandBuffer);
@@ -62,7 +58,6 @@ void *watch(void *args) {
         exit(BROKEN_PIPE);
         break;
       }
-      sleep(5); // we sleep so that we do not open the pipe again untill after the status has been printed
     }
     // run
     else if (strcasecmp(commandBuffer, commands[2]) == 0) {
@@ -76,13 +71,11 @@ void *watch(void *args) {
 
       if (logLevel == 2)
         printf("[Watcher] Getting simulation script...\n");
-      pthread_mutex_lock(pipeLock);
       pipe_header = fopen(named_pipe, "r");
       fgets(commandBuffer, buffsize, pipe_header);
       if (logLevel == 2)
         printf("[Watcher] Got script: %s\n", commandBuffer);
       fclose(pipe_header);
-      pthread_mutex_unlock(pipeLock);
 
       res = write(pipeToMain, commandBuffer, (size_t)buffsize);
       if (res == -1) {
