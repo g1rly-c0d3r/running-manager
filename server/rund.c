@@ -19,6 +19,19 @@ uint16_t thread_counter = 0;
 #include "run_sim.c"
 #include "watch.c"
 
+#define BNRM  "\x1B[0m"
+#define BRED  "\x1B[31m"
+#define BGRN  "\x1B[32m"
+#define BYEL  "\x1B[33m"
+#define BBLU  "\x1B[34m"
+#define BMAG  "\x1B[35m"
+#define BCYN  "\x1B[36m"
+#define BWHT  "\x1B[37m"
+
+#define BBOLD "\x1B[1m"
+#define BITAL "\x1B[3m"
+
+
 // for dev purposes, 
 // will be removed when finished
 void pass(void){}
@@ -51,15 +64,15 @@ args_t parse(int count, char **opts);
 // and prints them with the number of threads they need/are using.
 void print_status(struct List *running, struct Queue *waiting);
 
-int start_watcher(int *pipe, int8_t logLevel, pthread_mutex_t *lock);
+int start_watcher(int *pipe, int8_t logLevel);
 
 void create_tmp(int8_t log_level);
 
 int check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue *simQueue, struct List *runningList);
 
-void run_next_sim(struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel);
+void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel);
 
-void run_next_sim(struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel){
+void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel){
     if (!is_empty(simQueue)) {
         pthread_mutex_lock(threadlock);
         if (numthreads - simQueue->front->threads_needed >= 0) {
@@ -67,7 +80,8 @@ void run_next_sim(struct Queue *simQueue, struct List *runninglist, pthread_mute
             run_sim(simQueue->front->script, 
                     simQueue->front->threads_needed,
                     runninglist,
-                    threadlock);
+                    threadlock,
+                    arena);
             dequeue(simQueue);
         }
         pthread_mutex_unlock(threadlock);
@@ -102,7 +116,7 @@ int check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue *simQueue
     break;
     case RUN:
     if (loglevel >= 1)
-        printf("[Main] Run command recived, name: %s", &command_buff[1]);
+        printf("[Main] Run command recived, name: %s\n", &command_buff[1]);
     // command_buff holds the command enum in the first element,
     // and the script name follows it.
     queue_sim(simQueue, &command_buff[1]); // this should probably be outside
@@ -134,15 +148,25 @@ void create_tmp(int8_t log_level){
         printf("[Main] Named pipe created.\n");
     
     }
+
+    char *home_dir = getenv("HOME");
+    char buffer[128];
+    strcpy(buffer, home_dir);
+    strcat(buffer, "/.cache/rnmn/");
+
+    if(access(buffer, F_OK) == 0){
+        pass();
+    } else {
+        mkdir(buffer, 0700);
+    }
 }
 
-int start_watcher(int *pipe, int8_t logLevel, pthread_mutex_t *lock){
+int start_watcher(int *pipe, int8_t logLevel){
     arena_t *arena = arena_create_with_capacity(sizeof(Watch_Args) + 16);
     Watch_Args *watchArgs = arena_push(arena, sizeof(Watch_Args));
     *watchArgs = (Watch_Args){.pipeToMain = *pipe, 
                               .logLevel = logLevel, 
-                              .named_pipe = pipe_name,
-                              .pipe_lock = lock};
+                              .named_pipe = pipe_name };
   
     // The watcher thread will open the named pipe and block for a command,
     // and send a the command it recives to the main thread via an unamed pipe.
@@ -187,17 +211,38 @@ void print_status(struct List *running, struct Queue *waiting) {
     struct ListNode *listTraveler = running->head;
     Node *queueTraveler = waiting->front;
 
-    fputs("Currently running simulations:\n", status_file);
-    while (listTraveler->next_node != NULL){
-        fprintf(status_file, "%s\n", listTraveler->name);
-        listTraveler = listTraveler->next_node;
-    }
-    fputs("\nSimulations waiting to run:\n", status_file);
+    char name[] =
+" _____                  _              ___  ___            \n"
+"| ___ \\                (_)             |  \\/  |            \n"
+"| |_/ /   _ _ __  _ __  _ _ __   __ _  | .  . | __ _ _ __  \n"
+"|    / | | | '_ \\| '_ \\| | '_ \\ / _` | | |\\/| |/ _` | '_ \\ \n"
+"| |\\ \\ |_| | | | | | | | | | | | (_| | | |  | | (_| | | | |\n"
+"\\_| \\_\\__,_|_| |_|_| |_|_|_| |_|\\__, | \\_|  |_/\\__,_|_| |_|\n"
+"                                 __/ |                     \n"
+"                                |___/                      \n"
+;
+    fprintf(status_file, "%s%s%s\n%s", BBOLD, BGRN, name, BNRM);
 
-    while (queueTraveler->next_node != NULL){
-        fprintf(status_file, "%s\n", queueTraveler->script);
-        queueTraveler = queueTraveler->next_node;
+    if (listTraveler == NULL){
+        fprintf(status_file, "\t%sNo simulations are currently running.%s\n", BBOLD, BNRM);
+    } else {
+        fputs("\tCurrently running simulations:\n", status_file);
+        while (listTraveler->next_node != NULL){
+            fprintf(status_file, "\t\t%s\n", listTraveler->name);
+            listTraveler = listTraveler->next_node;
+        }
     }
+
+    if (queueTraveler == NULL){
+        fprintf(status_file, "\n\t%sNo simulations waiting to run.%s\n",BBOLD,BNRM );
+    } else{
+        fputs("\n\tSimulations waiting to run:\n", status_file);
+        while (queueTraveler->next_node != NULL){
+            fprintf(status_file, "\t\t%s\n", queueTraveler->script);
+            queueTraveler = queueTraveler->next_node;
+        }
+    }
+    fputs("\n", status_file);
     fclose(status_file);
 }
 
@@ -217,7 +262,8 @@ args_t parse(int count, char **opts) {
         break;
       default:
         fprintf(stderr, "Usage: ./rund [-l <log_level>]"
-                        "[-t <num_threads>]\n");
+                        "[-t <num_threads>]"
+                        "[-n <num_sims>]\n");
         exit(1);
       }
     }
