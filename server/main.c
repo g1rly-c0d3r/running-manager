@@ -38,16 +38,15 @@ int main(int argc, char **argv) {
 
     // these two lists define simulations that are currently running, 
     // and simulations that are waiting to run
-    struct Queue *simQueue = create_queue();
-    struct List *runningList = create_list();
+    struct Queue *simQueue = create_queue(args.num_sims);
+    struct List *runningList = create_list(args.num_sims);
   
   
-    const uint8_t numLocks = 2;
+    const uint8_t numLocks = 1;
     pthread_mutex_t locks[numLocks];
     pthread_mutex_init(&locks[THREAD], NULL);
-    pthread_mutex_init(&locks[PIPE], NULL);
 
-    if (start_watcher(&watchPipe[WRITE], args.log_level, &locks[PIPE]) !=0){
+    if (start_watcher(&watchPipe[WRITE], args.log_level) !=0){
         fprintf(stderr, "[Main] ERROR: can not create watcher pipe!\n");
         goto dealloc;
     }
@@ -70,18 +69,20 @@ int main(int argc, char **argv) {
           goto dealloc;
       }
 
-      run_next_sim(simQueue, runningList, &locks[THREAD], args.num_threads, args.log_level);
+      run_next_sim(main_arena, simQueue, runningList, &locks[THREAD], args.num_threads, args.log_level);
 
       if (args.log_level >= 2)
           printf("[Main] Waiting for command ... \n");
     }
   
 dealloc:
-    pthread_mutex_destroy(&locks[PIPE]);
     pthread_mutex_destroy(&locks[THREAD]);
 
     arena_free(main_arena);
     remove(pipe_name);
+
+    queue_free(simQueue);
+    list_free(runningList);
   
     printf("[Main] Deallocation completed, exiting.\n");
   
