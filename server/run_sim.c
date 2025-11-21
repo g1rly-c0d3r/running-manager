@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <arena.h>
 
 struct simArgs {
   uint8_t threads;
@@ -18,15 +19,16 @@ struct simArgs {
 
 static void *sim(void *args);
 
-void run_sim(void *script, uint8_t threads, struct List *running,
-             pthread_mutex_t *threadCounter) {
-  pthread_t *sim_thread = malloc(sizeof(pthread_t));
+pthread_t *run_sim(char *script, uint8_t threads, struct List *running,
+             pthread_mutex_t *threadCounter, arena_t *arena) {
+  pthread_t *sim_thread = arena_push(arena, sizeof(pthread_t));
   push(running, script, threads, sim_thread);
 
-  struct simArgs *sim_args = malloc(sizeof(struct simArgs));
+  struct simArgs *sim_args = arena_push(arena, sizeof(struct simArgs));
   *sim_args = (struct simArgs){.script = script, .threads = threads, .threadCounter = threadCounter};
   pthread_create(sim_thread, NULL, sim, (void *)sim_args);
   pthread_setname_np(*sim_thread, script);
+  return sim_thread;
 }
 
 static void *sim(void *args) {

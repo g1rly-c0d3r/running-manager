@@ -77,7 +77,9 @@ void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runningli
         pthread_mutex_lock(threadlock);
         if (numthreads - simQueue->front->threads_needed >= 0) {
             thread_counter -= simQueue->front->threads_needed;
-            run_sim(simQueue->front->script, 
+            char *script = arena_push(arena, 255);
+            strncpy(script, simQueue->front->script, 254);
+            run_sim(script, 
                     simQueue->front->threads_needed,
                     runninglist,
                     threadlock,
