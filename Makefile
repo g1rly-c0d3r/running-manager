@@ -14,4 +14,4 @@ debug: server/main.c
 
 .PHONY:clean
 clean:
-	rm -f run-db rnmnd
+	rm -f run-db rnmnd run.out err.out
