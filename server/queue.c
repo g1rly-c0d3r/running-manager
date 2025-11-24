@@ -35,9 +35,9 @@ struct ListNode {
 typedef struct Node Node;
 struct Node {
   uint8_t threads_needed;
-  char *script;
   struct Node *next_node;
   struct Node *prev_node;
+  char script[255];
 };
 
 bool is_empty(const struct Queue *queue) {
@@ -57,7 +57,7 @@ void queue_sim(struct Queue *queue, char *script) {
   const uint8_t buffsize = 100;
   char buffer[buffsize];
 
-  node->script = script;
+  strncpy(node->script, script, 255);
   node->threads_needed = 1;
 
   FILE *check_threads = fopen(script, "r");
@@ -87,6 +87,8 @@ void queue_sim(struct Queue *queue, char *script) {
 void dequeue(struct Queue *queue) {
     struct Node *node = queue->front;
     queue->front = queue->front->next_node;
+    if (queue->front == NULL || queue->front->next_node == NULL)
+        queue->end = NULL;
 
     node->next_node = queue->first_free;
     queue->first_free = node;

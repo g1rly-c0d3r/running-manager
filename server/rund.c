@@ -32,10 +32,6 @@ uint16_t thread_counter = 0;
 #define BITAL "\x1B[3m"
 
 
-// for dev purposes, 
-// will be removed when finished
-void pass(void){}
-
 typedef struct {
     // number of simulations to allocate by default.
     // if more simulations are queued, more memory will be realloc'd
@@ -76,7 +72,7 @@ void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runningli
     if (!is_empty(simQueue)) {
         pthread_mutex_lock(threadlock);
         if (numthreads - simQueue->front->threads_needed >= 0) {
-            thread_counter -= simQueue->front->threads_needed;
+            thread_counter += simQueue->front->threads_needed;
             char *script = arena_push(arena, 255);
             strncpy(script, simQueue->front->script, 254);
             run_sim(script, 
@@ -135,7 +131,7 @@ void create_tmp(int8_t log_level){
         remove(pipe_name);
 
     if (access("/tmp/rund/", F_OK) != 0)
-            pass();
+            pass(NULL);
 
     mkdir("/tmp/rund", 0700);
     if (log_level > 1) {
@@ -157,7 +153,7 @@ void create_tmp(int8_t log_level){
     strcat(buffer, "/.cache/rnmn/");
 
     if(access(buffer, F_OK) == 0){
-        pass();
+        pass(NULL);
     } else {
         mkdir(buffer, 0700);
     }

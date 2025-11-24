@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <arena.h>
 
+void *pass(void* args){return args;}
+
 struct simArgs {
   uint8_t threads;
   pthread_mutex_t *threadCounter;
@@ -27,7 +29,6 @@ pthread_t *run_sim(char *script, uint8_t threads, struct List *running,
   struct simArgs *sim_args = arena_push(arena, sizeof(struct simArgs));
   *sim_args = (struct simArgs){.script = script, .threads = threads, .threadCounter = threadCounter};
   pthread_create(sim_thread, NULL, sim, (void *)sim_args);
-  pthread_setname_np(*sim_thread, script);
   return sim_thread;
 }
 
