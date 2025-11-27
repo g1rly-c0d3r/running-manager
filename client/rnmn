@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-fd='/tmp/rund/command'
+dir='/tmp/rund'
 
 fatal(){
     echo "ERROR: $1" >&2
@@ -8,45 +8,50 @@ fatal(){
 }
 
 status() {
-  echo 'status' > "$fd"
+  echo 'status' > "$dir/command"
 
   sleep 1
 
-  cat "${fd%/*}/status"
+  cat "$dir/status"
 }
 
 run() {
   echo "$(pwd)/$1"
-  echo 'run' >"$fd"
+  echo 'run' >"$dir/command"
   sleep 0
-  echo -n "$(pwd)/$1" >"$fd"
+  echo -n "$(pwd)/$1" >"$dir/command"
   sleep 0
 }
 
 exit_fn() {
-  echo 'exit' >"$fd"
+  echo 'exit' >"$dir/command"
 }
 
 main(){
-	case "$1" in
-	'')
-	  echo 'Please specify a command'
-	  exit 1
-	  ;;
-	'exit')
-	  exit_fn
-	  ;;
-	'status')
-	  status
-	  ;;
-	'run')
-	  run "$2"
-	  ;;
-	*)
-	  echo 'Invalid Command!'
-	  exit 1
-	  ;;
-	esac
+    if [[ -d $dir ]]; then 
+        case "$1" in
+        '')
+          echo 'Please specify a command'
+          exit 1
+          ;;
+        'exit')
+          exit_fn
+          ;;
+        'status')
+          status
+          ;;
+        'run')
+          run "$2"
+          ;;
+        *)
+          echo 'Invalid Command!'
+          exit 1
+          ;;
+        esac
+    else
+        echo "Error: Can not connect to server."
+        return 1
+    fi
 }
 
 main "$@"
