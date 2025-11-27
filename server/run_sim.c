@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <arena.h>
+#include <string.h>
 
 void *pass(void* args){return args;}
 
@@ -36,25 +37,35 @@ static void *sim(void *args) {
   char *script = ((struct simArgs *)args)->script;
   uint8_t threads_in_use = ((struct simArgs *)args)->threads;
   pthread_mutex_t *threadCounter = ((struct simArgs *)args)->threadCounter;
-  char buffer[512]; 
 
-  // we will be running this sim and saving the output
-  char *redirect = " > run.out 2> err.out";
-  char *path = alloca(512 * sizeof(char));
+  char path[512], cmd[512], dir[512];
+
+  //get path that we will be working in
   sprintf(path, "~/.cache/rnmn/%d/", gettid());
   mkdir(path, 0700);
 
-  // copy script_dir to path, and then chdir to path
-  sprintf(buffer, "cp -r %s/**/* %s", dirname(script), path);
-  system(buffer);
-  chdir(path);
+  strcpy(dir, script);
+  dirname(dir);
 
-  sprintf(buffer, "%s %s", basename(script), redirect);
-  system(buffer);
+  // we will be running this sim and saving the output
+  char redirect[128];
+  sprintf(redirect, " > %s/run.out 2> %s/err.out", path, path);
+
+  // copy script_dir to path, and then chdir to path
+  sprintf(cmd, "cp -r %s %s", dir, path);
+  system(cmd);
+
+  sprintf(cmd, "%s/%s %s", path, basename(script), redirect);
+  system(cmd);
 
   pthread_mutex_lock(threadCounter);
   thread_counter -= threads_in_use;
   pthread_mutex_unlock(threadCounter);
+
+
+
+  sprintf(cmd, "rm -r %s", path);
+  system(cmd);
 
   return (void *)script;
 }

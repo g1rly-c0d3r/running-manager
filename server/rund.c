@@ -68,6 +68,17 @@ int check_watcher(int watch_pipe_reader, int8_t loglevel, struct Queue *simQueue
 
 void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel);
 
+void remove_tmp(char *name);
+
+
+void remove_tmp(char *name){
+    char dir[128], cmd[128] = "rm -r ";
+    strcpy(dir, name);
+    dirname(dir);
+    strcat(cmd, dir);
+    system(cmd);
+}
+
 void run_next_sim(arena_t *arena, struct Queue *simQueue, struct List *runninglist, pthread_mutex_t *threadlock, uint16_t numthreads, int8_t loglevel){
     if (!is_empty(simQueue)) {
         pthread_mutex_lock(threadlock);
@@ -139,12 +150,23 @@ void create_tmp(int8_t log_level){
     }
     
 
+
     if (mkfifo(pipe_name, 0666) != 0){
         fprintf(stderr, "[Main] ERROR: Can not create named pipe.\n");
         exit(1);
     }else if (log_level >1) {
         printf("[Main] Named pipe created.\n");
     
+    }
+
+    if (access("/tmp/rund/status", F_OK) == 0){
+        pass(NULL);
+    }
+    else if (mkfifo("/tmp/rund/status", 0666) != 0){
+        fprintf(stderr, "[Main] ERROR: Can not create status pipe.\n");
+        exit(1);
+    }else if (log_level >1) {
+        printf("[Main] Named pipe created.\n");
     }
 
     char *home_dir = getenv("HOME");
@@ -224,7 +246,7 @@ void print_status(struct List *running, struct Queue *waiting) {
     if (listTraveler == NULL){
         fprintf(status_file, "\t%sNo simulations are currently running.%s\n", BBOLD, BNRM);
     } else {
-        fputs("\tCurrently running simulations:\n", status_file);
+        fprintf(status_file, "\t%sCurrently running simulations:%s\n", BBOLD, BNRM);
         while (listTraveler->next_node != NULL){
             fprintf(status_file, "\t\t%s\n", listTraveler->name);
             listTraveler = listTraveler->next_node;
@@ -234,7 +256,7 @@ void print_status(struct List *running, struct Queue *waiting) {
     if (queueTraveler == NULL){
         fprintf(status_file, "\n\t%sNo simulations waiting to run.%s\n",BBOLD,BNRM );
     } else{
-        fputs("\n\tSimulations waiting to run:\n", status_file);
+        fprintf(status_file,"\n\t%sSimulations waiting to run:%s\n", BBOLD, BNRM);
         while (queueTraveler->next_node != NULL){
             fprintf(status_file, "\t\t%s\n", queueTraveler->script);
             queueTraveler = queueTraveler->next_node;

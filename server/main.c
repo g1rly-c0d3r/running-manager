@@ -79,7 +79,7 @@ dealloc:
     pthread_mutex_destroy(&locks[THREAD]);
 
     arena_free(main_arena);
-    remove(pipe_name);
+    remove_tmp(pipe_name);
 
     queue_free(simQueue);
     list_free(runningList);
