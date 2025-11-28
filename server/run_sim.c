@@ -62,7 +62,11 @@ static void *sim(void *args) {
   thread_counter -= threads_in_use;
   pthread_mutex_unlock(threadCounter);
 
+  sprintf(cmd, "tar -czf %s/run.tar.gz %s", path, path);
+  system(cmd);
 
+  sprintf(cmd, "cp %s/run%d.tar.gz %s", path, gettid(), dir);
+  system(cmd);
 
   sprintf(cmd, "rm -r %s", path);
   system(cmd);
