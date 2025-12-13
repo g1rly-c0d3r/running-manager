@@ -2,17 +2,17 @@
 
 dir='/tmp/rund'
 
-fatal(){
+fatal() {
     echo "ERROR: $1" >&2
     exit 1
 }
 
 status() {
-  echo 'status' > "$dir/command"
+  echo 'status' 2>/dev/null > "$dir/command" 
 
   sleep 1
 
-  cat "$dir/status"
+  cat "$dir/status"  2>/dev/null || echo "Error: rnmnd not started" >&2 
 }
 
 run() {
@@ -27,31 +27,55 @@ exit_fn() {
   echo 'exit' >"$dir/command"
 }
 
-main(){
-    if [[ -d $dir ]]; then 
-        case "$1" in
-        '')
-          echo 'Please specify a command'
-          exit 1
-          ;;
-        'exit')
-          exit_fn
-          ;;
-        'status')
-          status
-          ;;
-        'run')
-          run "$2"
-          ;;
-        *)
-          echo 'Invalid Command!'
-          exit 1
-          ;;
-        esac
-    else
-        echo "Error: Can not connect to server."
-        return 1
+start(){
+    # if the server is already started, then re-start it
+    local proc=$(ps -e | grep rnmn | awk '{print $1}')
+    if [[ -z  $proc ]]; then 
+        # start the server using the environment variables or default values
+        rnmn -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
+    else 
+        # making sure it is killed if it exists
+        kill "$proc" &2>/dev/null
+        rnmn -n $SIMS -l $LOGLEVEL -t $THREADS & disown
     fi
+}
+
+version(){
+    local RNMN_VERSION
+    echo "version" > "$dir/command"
+    RNMN_VERSION=$(cat "$dir/status")
+    echo -e "Running Man simulation manager\nVersion $RNMN_VERSION\nThis software is distributed with no waranty of any kind"
+}
+
+main(){
+    case "$1" in
+    '')
+      echo -e 'Please specify a command:\nstart   -- start the server if it does not exist, or restart it if it does\nexit    -- kill the server\nrun     -- add a simulation to the queue\nstatus  -- view status of rnmn\nhelp    -- print this message\nversion -- print the version of Running Man'
+      exit 1
+      ;;
+    'help')
+      echo -e 'Please specify a command:\nstart   -- start the server if it does not exist, or restart it if it does\nexit    -- kill the server\nrun     -- add a simulation to the queue\nstatus  -- view status of rnmn\nhelp    -- print this message\nversion -- print the version of Running Man'
+      ;;
+    'start')
+        start
+        ;;
+    'exit')
+      exit_fn
+      ;;
+    'status')
+      status
+      ;;
+  'version')
+      version
+      ;;
+    'run')
+      run "$2"
+      ;;
+    *)
+      echo 'Invalid Command!'
+      exit 1
+      ;;
+    esac
 }
 
 main "$@"
