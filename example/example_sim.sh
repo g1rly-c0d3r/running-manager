@@ -10,3 +10,5 @@ echo 'done'
 echo -n 'doing something long . . . '
 sleep 60
 echo 'done'
+
+echo "something that failed!" >&2
