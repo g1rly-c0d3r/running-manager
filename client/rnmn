@@ -16,11 +16,10 @@ status() {
 }
 
 run() {
-  echo "$(pwd)/$1"
+  echo "$PWD/$1"
   echo 'run' >"$dir/command"
   sleep 0
-  echo -n "$(pwd)/$1" >"$dir/command"
-  sleep 0
+  echo -n "$PWD/$1" >"$dir/command"
 }
 
 exit_fn() {
@@ -28,15 +27,16 @@ exit_fn() {
 }
 
 start(){
+    mkdir -p ~/.cache/rnmn/
     # if the server is already started, then re-start it
-    local proc=$(ps -e | grep rnmn | awk '{print $1}')
+    local proc=$(ps -e | grep rnmnd | awk '{print $1}')
     if [[ -z  $proc ]]; then 
         # start the server using the environment variables or default values
-        rnmn -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
+        rnmnd -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
     else 
         # making sure it is killed if it exists
         kill "$proc" &2>/dev/null
-        rnmn -n $SIMS -l $LOGLEVEL -t $THREADS & disown
+        rnmnd -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
     fi
 }
 
