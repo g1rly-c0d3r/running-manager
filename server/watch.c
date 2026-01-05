@@ -4,26 +4,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <arena.h>
 
-#define NUM_COMMANDS 3
-const char commands[NUM_COMMANDS][32] = {"exit\n", "status\n", "run\n"};
-enum commands { PASS, EXIT, STATUS, RUN };
+#define NUM_COMMANDS 4
+const char commands[NUM_COMMANDS][32] = {"exit\n", "status\n", "run\n", "version\n"};
+enum commands { PASS, EXIT, STATUS, RUN, VERSION };
 
 enum watch_return { SUCESS, BROKEN_PIPE };
 
 typedef struct Watch_Args Watch_Args;
 struct Watch_Args {
   int pipeToMain;
-  int logLevel;
+  log_level_t logLevel;
   char *named_pipe;
 };
 
 void *watch(void *args) {
     arena_t *scratch = (arena_t *)args;
   int pipeToMain = ((Watch_Args *)scratch->elem)->pipeToMain;
-  int logLevel = ((Watch_Args *)scratch->elem)->logLevel;
+  log_level_t logLevel = ((Watch_Args *)scratch->elem)->logLevel;
   char *named_pipe = ((Watch_Args *)scratch->elem)->named_pipe;
 
   FILE *pipe_header;
@@ -32,13 +33,13 @@ void *watch(void *args) {
   ssize_t res;
 
   while (true) {
-    if (logLevel == 2)
+    if (logLevel >= DEBUG)
       printf("[Watcher] Opening pipe and waiting ...\n");
     pipe_header = fopen(named_pipe, "r");
     fgets(commandBuffer, buffsize - 1, pipe_header);
     fclose(pipe_header);
 
-    if (logLevel == 2)
+    if (logLevel >= DEBUG)
       printf("[Watcher] Command recived: %s", commandBuffer);
 
     if (strcasecmp(commandBuffer, commands[0]) == 0) {
@@ -69,7 +70,7 @@ void *watch(void *args) {
         break;
       }
 
-      if (logLevel == 2)
+      if (logLevel >= DEBUG)
         printf("[Watcher] Getting simulation script...\n");
       pipe_header = fopen(named_pipe, "r");
       fgets(commandBuffer, buffsize, pipe_header);
@@ -83,9 +84,15 @@ void *watch(void *args) {
         exit(BROKEN_PIPE);
         break;
       }
-
+    }else if (strcasecmp(commandBuffer, commands[3]) == 0) {
+      res = dprintf(pipeToMain, "%d", VERSION);
+      if (res != 1) {
+        fprintf(stderr, "[Watcher] Error! Broken pipe!\n");
+        exit(BROKEN_PIPE);
+        break;
+      }
     } else {
-      if (logLevel == 2)
+      if (logLevel >= DEBUG)
         printf("[Watcher] Invalid command recived!\n");
     }
   }

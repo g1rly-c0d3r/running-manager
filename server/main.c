@@ -42,11 +42,12 @@ int main(int argc, char **argv) {
     struct List *runningList = create_list(args.num_sims);
   
   
-    const uint8_t numLocks = 1;
+    const uint8_t numLocks = 2;
     pthread_mutex_t locks[numLocks];
     pthread_mutex_init(&locks[THREAD], NULL);
+    pthread_mutex_init(&locks[RUNNING], NULL);
 
-    if (start_watcher(&watchPipe[WRITE], args.log_level) !=0){
+    if (start_watcher(&watchPipe[WRITE], args.log_level) != 0){
         fprintf(stderr, "[Main] ERROR: can not create watcher pipe!\n");
         goto dealloc;
     }
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
     // main loop of the server
     // open the pipe, parse a command, execute it, and close the pipe.
   
-    if (args.log_level >= 2)
+    if (args.log_level >= NORM)
       printf("[Main] Startup successful, entering main loop\n");
   
     while (1) {
@@ -64,27 +65,30 @@ int main(int argc, char **argv) {
       // If you're reading this, that means you can change it however you want.
       sleep(1);
 
-      if (check_watcher(watchPipe[0], args.log_level, simQueue, runningList) == -1){
+      if (check_watcher(watchPipe[0], args.log_level, simQueue, runningList, &locks[RUNNING]) == -1){
           // exit command recieved.
           goto dealloc;
       }
 
-      run_next_sim(main_arena, simQueue, runningList, &locks[THREAD], args.num_threads, args.log_level);
+      run_next_sim(main_arena, simQueue, runningList, &locks[THREAD], &locks[RUNNING], args.num_threads, args.log_level);
 
-      if (args.log_level >= 2)
+      if (args.log_level >= DEBUG)
           printf("[Main] Waiting for command ... \n");
     }
   
 dealloc:
     pthread_mutex_destroy(&locks[THREAD]);
+    pthread_mutex_destroy(&locks[RUNNING]);
 
     arena_free(main_arena);
-    remove_tmp(pipe_name);
+    remove_tmp(pipe_name, args.log_level);
 
     queue_free(simQueue);
     list_free(runningList);
   
-    printf("[Main] Deallocation completed, exiting.\n");
+    if (args.log_level >= NORM) 
+        printf("[Main] Deallocation completed, exiting.\n");
+    
   
     return 0;
 }
