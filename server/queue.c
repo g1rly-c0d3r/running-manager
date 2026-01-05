@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arena.h>
+#include <time.h>
 #include <unistd.h>
 
 struct Queue {
@@ -165,20 +166,67 @@ void push(struct List *list, char *script, uint8_t threads,
 
 void remove_node(struct List *list, char *name) {
   ListNode *traveler = list->head;
+    // case 1: list has one element
+    if (list->head == list->tail){
+        if (strcmp(traveler->name, name) != 0){
+            fprintf(stderr, "[Sim %d] ERROR: can not remove item from list (item does not exist)", gettid());
+            return;
+        }
+        traveler->next_node = list->first_free;
+        traveler->prev_node = NULL;
+        if (list->first_free != NULL)
+            list->first_free->prev_node = traveler;
+        list->first_free = traveler;
+        list->head = NULL;
+        list->tail = NULL;
 
-  while (traveler->next_node != NULL) {
+        return;
+    }
+
+    // case 2: the node we want to remove is the first node in the list
+    if (strcmp(list->head->name, name) == 0){
+        traveler = list->head;
+        list->head = traveler->next_node;
+
+        traveler->next_node = list->first_free;
+
+        list->first_free->prev_node = traveler;
+        list->first_free = traveler;
+    }
+    
+    // case 3: the node we want to remove is the last node
+    if (strcmp(list->tail->name, name) == 0){
+        traveler = list->tail;
+        list->tail = traveler->prev_node;
+
+        traveler->next_node = list->first_free;
+
+        if (list->first_free != NULL)
+            list->first_free->prev_node = traveler;
+        list->first_free = traveler;
+
+        return;
+    }
+
+  // case 4: any other node
+
+  traveler = list->head->next_node; // we already checked the head of the list so we can go to the next one
+  while (traveler != NULL) {
     if (strcmp(traveler->name, name) == 0) {
       traveler->prev_node->next_node = traveler->next_node;
       traveler->next_node->prev_node = traveler->prev_node;
 
-      if (traveler == list->tail){
-          arena_pop(list->list_arena, sizeof(ListNode));
-      } else {
-          traveler->next_node = list->first_free;
-          list->first_free = traveler;
-      }
+      traveler->next_node = list->first_free;
+      traveler->prev_node = NULL;
+
+      if (list->first_free != NULL)
+          list->first_free->prev_node = traveler;
+      list->first_free = traveler;
+
       break;
     }
+
+    traveler = traveler->next_node;
   }
 }
 #endif /* ifndef QUEUE                                                         \
