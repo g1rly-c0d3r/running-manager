@@ -15,7 +15,11 @@ RNMN is licenced under the GNU GPL V2.
 To build RNMN, run the following commmands to clone the repository, then build the server binary:
 ```bash
 git clone https://github.com/g1rly-c0d3r/running-manager.git
+git submodule init && git submodule update
 cd running-manager
+cd c_arena
+sudo make install
+cd ..
 make
 ```
 After you have built the application, run
