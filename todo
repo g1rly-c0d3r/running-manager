@@ -1,0 +1,16 @@
+# V 0.1
+
+- fix removing nodes from running list after sim finishes
+
+
+# V 0.2
+
+- fix the issue where it hangs sometimes
+- use hwloc to bind sims to correct cpus
+- fix status command to print in a more pretty way
+- add name attribute to simulation struct to print it that way
+    - add name field to example sims and update docs accordingly
+- add number of threads currently in use when printing status
+
+
+
