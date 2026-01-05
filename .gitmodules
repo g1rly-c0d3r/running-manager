@@ -1,0 +1,3 @@
+[submodule "c_arena"]
+	path = c_arena
+	url = https://github.com/g1rly-c0d3r/c_arena.git
