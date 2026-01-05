@@ -4,6 +4,8 @@ This project is a simulatuion manager for a linux machine, because I was tired o
 The initial inspiration came from Dave Eddy's [ysap series](https://ysap.sh) (`curl ysap.sh`). I was also inspired by the [SLURM](https://slurm.schedmd.com/documentation.html) HPC supervising software (in function only).
 RNMN is licenced under the GNU GPL V2.
 
+The only [dependancy](https://github.com/g1rly-c0d3r/running-manager) is an arena implementation that I wrote myself. 
+
 ## Table of Contents
 
 - [Installation](./README.md#Installation)
@@ -12,7 +14,7 @@ RNMN is licenced under the GNU GPL V2.
 - [Testing](./README.md#Testing)
 
 ## Installation
-To build RNMN, run the following commmands to clone the repository, then build the server binary:
+To build RNMN, run the following commmands to clone the repository, build & install the arena submodule, then build the server binary:
 ```bash
 git clone https://github.com/g1rly-c0d3r/running-manager.git
 git submodule init && git submodule update
@@ -62,7 +64,7 @@ To run a simulation, you will need to put the invocation in a submit script, in 
 Once you have a script, run 
 ```bash
 rnmn run <path/to/script>
-```
+``` 
 This will queue up your simulation to be run. Running Man will then create a copy of the directory that the submission script lives in `~/.cache/rnmn`, 
 run your simulation on the number of threads you specified, compress the copy, and move it back the the directory that the submission script is in.
 
