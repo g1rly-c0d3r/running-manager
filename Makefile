@@ -1,11 +1,13 @@
 CC=clang
 cc_warnings=-Wall -Werror -Wpedantic -Wextra -Wshadow -Wconversion -pedantic-errors
-cc_optimizations=-O3 -march=native
+cc_optimizations?=-O3 -march=native -mtune=native
+CCFLAGS+=$(cc_warnings) $(cc_optimizations)
 
-OBJS := ./server/main.c ./server/rund.c ./server/queue.c ./server/watch.c ./server/run_sim.c
 INSTALL_DIR ?= /usr/bin/
 
-rnmnd: $(OBJS)
+srcs=$(wildcard server/*.c)
+
+rnmnd: $(srcs)
 	${CC} ${cc_warnings} ${cc_optimizations} -o $@ server/main.c -larena
 
 tests: test/test.c 
