@@ -1,6 +1,8 @@
 CC=clang
+
 cc_warnings=-Wall -Werror -Wpedantic -Wextra -Wshadow -Wconversion -pedantic-errors
 cc_optimizations?=-O3 -march=native -mtune=native
+
 CCFLAGS+=$(cc_warnings) $(cc_optimizations)
 
 INSTALL_DIR ?= /usr/bin/
