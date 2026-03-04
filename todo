@@ -7,3 +7,4 @@
     - add name field to example sims and update docs accordingly
 - add number of threads currently in use when printing status
 - write a man page
+- implement wait for/kill simulations on exit
