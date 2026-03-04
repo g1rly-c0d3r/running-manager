@@ -2,6 +2,53 @@
 
 dir='/tmp/rund'
 
+usage(){
+    local subcmd="$1"
+    echo -e "Usage: rnmn ${subcmd:-<subcmd>} [opts]\n"
+
+    case "$subcmd" in
+        "start")
+            cat << EOF
+
+Options:
+
+    -t <threads>        Max threads for simulation use (default 16)
+    -s <simulations>    Number of simulations to pre-allocate memory for (default 12)
+    -l <log level>      Verbosity 
+                          0 => silent  
+                          1 => standard (default)
+                          2 => debug
+EOF
+            ;;
+        "exit")
+            echo -e "\tKill the running server"
+            cat << EOF
+
+Options:
+
+    -w      Wait for the running simulations to finish (default)
+    -f      Force, send SIGKILL to the server
+EOF
+            ;;
+        "run")
+            echo -e "\t Add a simulation to the queue"
+            cat << EOF
+
+Options (specified in submission script):
+
+    threads     Number of threads the simulation will use
+    
+EOF
+            ;;
+        "status")
+            echo -e "\tView the currently running simulations, as well as the simulations waiting in the queue\n";;
+        *) 
+          echo -e 'Please specify a subcommand:\nstart   -- start the server if it does not exist, or restart it if it does\nexit    -- kill the server\nrun     -- add a simulation to the queue\nstatus  -- view status of rnmn\nhelp    -- print this message\nversion -- print the version of Running Man'
+          echo -e "\nuse rnmn help <subcmd> for subcommand options"
+            ;;
+    esac
+}
+
 fatal() {
     echo "ERROR: $1" >&2
     exit 1
@@ -23,21 +70,34 @@ run() {
 }
 
 exit_fn() {
-  echo 'exit' >"$dir/command"
+    while getopts "wf" opt; do
+        case $opt in 
+            "w") echo 'exit' >"$dir/command";;
+            "f") kill -9 $(pgrep rnmnd);;
+            *) usage "exit" >&2; exit 1;;
+        esac
+    done
 }
 
 start(){
     mkdir -p ~/.cache/rnmn/
     # if the server is already started, then re-start it
-    local proc=$(ps -e | grep rnmnd | awk '{print $1}')
-    if [[ -z  $proc ]]; then 
-        # start the server using the environment variables or default values
-        rnmnd -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
-    else 
-        # making sure it is killed if it exists
+    local proc=$(pgrep rnmnd)
+    local threads=16 sims=12 log_level=1
+
+    while getopts "t:s:l:h" opt; do
+        case "$opt" in
+            t) threads=$OPTARG;;
+            s) sims=$OPTARG;;
+            l) log_level=$OPTARG;;
+            h) usage "start"; exit 0;;
+            *) usage "start" >&2; exit 1;;
+        esac
+    done
+    if [[ -n  $proc ]]; then 
         kill "$proc" &2>/dev/null
-        rnmnd -n $SIMS -l $LOGLEVEL -t $THREADS > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
     fi
+    rnmnd -n "$sims" -l "$log_level" -t "$threads" > ~/.cache/rnmn/stdout.log 2>~/.cache/rnmn/stderr.log & disown
 }
 
 version(){
@@ -49,15 +109,15 @@ version(){
 
 main(){
     case "$1" in
-    '')
-      echo -e 'Please specify a command:\nstart   -- start the server if it does not exist, or restart it if it does\nexit    -- kill the server\nrun     -- add a simulation to the queue\nstatus  -- view status of rnmn\nhelp    -- print this message\nversion -- print the version of Running Man'
+    '') usage >&2;
       exit 1
       ;;
     'help')
-      echo -e 'Please specify a command:\nstart   -- start the server if it does not exist, or restart it if it does\nexit    -- kill the server\nrun     -- add a simulation to the queue\nstatus  -- view status of rnmn\nhelp    -- print this message\nversion -- print the version of Running Man'
-      ;;
+        shift
+        usage "$@" ;;
     'start')
-        start
+        shift
+        start "$@" 
         ;;
     'exit')
       exit_fn
